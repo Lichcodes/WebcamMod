@@ -13,6 +13,7 @@ import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.EntryListWidget;
 import net.minecraft.client.render.DiffuseLighting;
+import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.text.Text;
@@ -66,12 +67,12 @@ public class SettingsScreen extends Screen {
 
         int listWidth = this.width/4;
         int closeButtonY = this.height - ELEMENT_SPACING;
-        WebcamEntryList listWidget = new WebcamEntryList(this.client, listWidth, closeButtonY, ELEMENT_SPACING, 18, 18);
+        WebcamEntryList listWidget = new WebcamEntryList(this.client, listWidth, closeButtonY, ELEMENT_SPACING, 18);
         String currentWebcam = VideoCamara.getCurrentWebcam();
         for (String webcamName : webcams) {
-            int index = listWidget.addEntry(webcamName);
+            WebcamEntryList.WebcamEntry entry = listWidget.addEntry(webcamName);
             if (currentWebcam != null && currentWebcam.equals(webcamName)) {
-                listWidget.setSelected(index);
+                listWidget.setSelected(entry);
             }
         }
 
@@ -133,8 +134,9 @@ public class SettingsScreen extends Screen {
         }
 
         entityRenderDispatcher.setRenderShadows(false);
-        context.draw((vertexConsumers) -> entityRenderDispatcher.render(entity, (double)0.0F, (double)0.0F, (double)0.0F, 1.0F, context.getMatrices(), vertexConsumers, 15728880));
-        context.draw();
+        VertexConsumerProvider.Immediate immediate = MinecraftClient.getInstance().getBufferBuilders().getEntityVertexConsumers();
+        entityRenderDispatcher.render(entity, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, context.getMatrices(), immediate, 15728880);
+        immediate.draw();
         entityRenderDispatcher.setRenderShadows(true);
         context.getMatrices().pop();
         DiffuseLighting.enableGuiDepthLighting();
@@ -158,8 +160,8 @@ public class SettingsScreen extends Screen {
         public boolean canSwitch = true;
         private Function<String,?> selectedCallback;
 
-        public WebcamEntryList(MinecraftClient client, int width, int height, int y, int itemHeight, int headerHeight) {
-            super(client, width, height, y, itemHeight, headerHeight);
+        public WebcamEntryList(MinecraftClient client, int width, int height, int y, int itemHeight) {
+            super(client, width, height, y, itemHeight);
         }
 
         public void onSelected(Function<String, ?> selectedCallback) {
@@ -186,10 +188,11 @@ public class SettingsScreen extends Screen {
 
         }
 
-        public int addEntry(String text) {
+        public WebcamEntry addEntry(String text) {
             WebcamEntry webcamEntry = new WebcamEntry();
             webcamEntry.text = text;
-            return super.addEntry(webcamEntry);
+            super.addEntry(webcamEntry);
+            return webcamEntry;
         }
 
         @Environment(EnvType.CLIENT)

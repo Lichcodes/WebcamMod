@@ -22,7 +22,8 @@ public class WebcamModClient implements ClientModInitializer {
 
 		LivingEntityFeatureRendererRegistrationCallback.EVENT.register((entityType, entityRenderer, registrationHelper, context) -> {
 			if (entityRenderer instanceof PlayerEntityRenderer) {
-				registrationHelper.register(new PlayerFaceRenderer((PlayerEntityRenderer) entityRenderer));
+				PlayerEntityRenderer playerRenderer = (PlayerEntityRenderer) entityRenderer;
+				registrationHelper.register(new PlayerFaceRenderer(playerRenderer));
 			}
 		});
 
