@@ -3,6 +3,7 @@ package com.lichcode.webcam.screen;
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamException;
 import com.lichcode.webcam.WebcamMod;
+import com.lichcode.webcam.config.WebcamConfig;
 import com.lichcode.webcam.video.VideoCamara;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -11,7 +12,9 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.gui.widget.EntryListWidget;
+import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.render.DiffuseLighting;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
@@ -29,6 +32,14 @@ public class SettingsScreen extends Screen {
     public static final int ELEMENT_SPACING = 10;
     public float zoom = 1;
     private WebcamEntryList webcamEntryList;
+    
+    // 显示模式选择按钮
+    private CyclingButtonWidget<WebcamConfig.DisplayMode> displayModeButton;
+    
+    // 选框裁剪模式参数滑块
+    private SliderWidget cropBoxXSlider;
+    private SliderWidget cropBoxYSlider;
+    private SliderWidget cropBoxSizeSlider;
 
     public SettingsScreen() {
         super(Text.of(WebcamMod.MOD_ID + " Settings"));
@@ -42,18 +53,31 @@ public class SettingsScreen extends Screen {
             context.drawTooltip(this.textRenderer, Text.of("Opening webcam..."), this.width/4*2, 50);
         }
     }
+    
+    private String getDisplayModeDescription(WebcamConfig.DisplayMode mode) {
+        switch (mode) {
+            case STRETCH_FILL:
+                return "拉伸填充模式：摄像头画面被强制拉伸为正方形";
+            case CROP_BOX:
+                return "选框裁剪模式：选择画面部分区域进行显示";
+            default:
+                return "";
+        }
+    }
 
     @Override
     public void init() {
         initCloseButton();
         initWebcamList();
+        initDisplayModeControls();
+        updateCropBoxControlsVisibility();
     }
 
     private void initCloseButton() {
-        Text closeButtonTitle = Text.of("Close");
-        int closeButtonWidth = 100;
-        int closeButtonX = width - closeButtonWidth - ELEMENT_SPACING;
-        int closeButtonY = height - ELEMENT_HEIGHT - ELEMENT_SPACING;
+        Text closeButtonTitle = Text.of("关闭");
+        int closeButtonWidth = 180; // 与其他按钮保持一致的宽度
+        int closeButtonX = this.width - closeButtonWidth - ELEMENT_SPACING; // 与其他按钮对齐
+        int closeButtonY = ELEMENT_SPACING * 2; // 放在最顶部
         ButtonWidget closeButton = ButtonWidget.builder(
                 closeButtonTitle,
                 button -> client.setScreen(null)
@@ -87,6 +111,135 @@ public class SettingsScreen extends Screen {
 
         this.webcamEntryList = listWidget;
         addDrawableChild(listWidget);
+    }
+    
+    private void initDisplayModeControls() {
+        // 控件大小和位置配置
+        int buttonWidth = 180; // 减小宽度以适应右侧
+        int rightSideX = this.width - buttonWidth - ELEMENT_SPACING; // 右侧起始X坐标
+        int startY = ELEMENT_SPACING * 2 + ELEMENT_HEIGHT + ELEMENT_SPACING; // 从关闭按钮下方开始布局
+        
+        // 显示模式切换按钮
+        displayModeButton = CyclingButtonWidget.<WebcamConfig.DisplayMode>builder(mode -> {
+                String label = switch (mode) {
+                    case STRETCH_FILL -> "拉伸填充模式";
+                    case CROP_BOX -> "选框裁剪模式";
+                };
+                return Text.of("显示模式: " + label);
+            })
+            .values(WebcamConfig.DisplayMode.values())
+            .initially(WebcamConfig.getDisplayMode())
+            .build(rightSideX, startY, buttonWidth, ELEMENT_HEIGHT, Text.of("显示模式"), 
+                (button, mode) -> {
+                    WebcamConfig.setDisplayMode(mode);
+                    updateCropBoxControlsVisibility();
+                });
+        
+        addDrawableChild(displayModeButton);
+        
+        // 右侧控件间距为单倍
+        int controlSpacing = ELEMENT_SPACING + ELEMENT_HEIGHT;
+        
+        // 选框X位置滑块 - 位于显示模式按钮下方
+        cropBoxXSlider = new ModSliderWidget(
+                rightSideX, 
+                startY + controlSpacing, 
+                buttonWidth, 
+                ELEMENT_HEIGHT, 
+                Text.of("选框X位置: " + String.format("%.2f", WebcamConfig.getCropBoxX())),
+                WebcamConfig.getCropBoxX()) {
+            
+            @Override
+            protected void updateMessage() {
+                setMessage(Text.of("选框X位置: " + String.format("%.2f", this.value)));
+            }
+            
+            @Override
+            protected void applyValue() {
+                WebcamConfig.setCropBoxX((float) this.value);
+                // 实时更新裁剪预览
+                updateCropPreview();
+            }
+            
+            @Override
+            public void onDrag(double mouseX, double mouseY, double deltaX, double deltaY) {
+                super.onDrag(mouseX, mouseY, deltaX, deltaY);
+                // 拖动时实时更新
+                updateCropPreview();
+            }
+        };
+        
+        // 选框Y位置滑块 - 位于X位置滑块下方
+        cropBoxYSlider = new ModSliderWidget(
+                rightSideX, 
+                startY + 2 * controlSpacing, 
+                buttonWidth, 
+                ELEMENT_HEIGHT, 
+                Text.of("选框Y位置: " + String.format("%.2f", WebcamConfig.getCropBoxY())),
+                WebcamConfig.getCropBoxY()) {
+            
+            @Override
+            protected void updateMessage() {
+                setMessage(Text.of("选框Y位置: " + String.format("%.2f", this.value)));
+            }
+            
+            @Override
+            protected void applyValue() {
+                WebcamConfig.setCropBoxY((float) this.value);
+                // 实时更新裁剪预览
+                updateCropPreview();
+            }
+            
+            @Override
+            public void onDrag(double mouseX, double mouseY, double deltaX, double deltaY) {
+                super.onDrag(mouseX, mouseY, deltaX, deltaY);
+                // 拖动时实时更新
+                updateCropPreview();
+            }
+        };
+        
+        // 选框大小滑块 - 位于Y位置滑块下方
+        cropBoxSizeSlider = new ModSliderWidget(
+                rightSideX, 
+                startY + 3 * controlSpacing, 
+                buttonWidth, 
+                ELEMENT_HEIGHT, 
+                Text.of("选框大小: " + String.format("%.2f", WebcamConfig.getCropBoxSize())),
+                WebcamConfig.getCropBoxSize(), 0.1, 1.0) {
+            
+            @Override
+            protected void updateMessage() {
+                setMessage(Text.of("选框大小: " + String.format("%.2f", this.value)));
+            }
+            
+            @Override
+            protected void applyValue() {
+                WebcamConfig.setCropBoxSize((float) this.value);
+                // 实时更新裁剪预览
+                updateCropPreview();
+            }
+            
+            @Override
+            public void onDrag(double mouseX, double mouseY, double deltaX, double deltaY) {
+                super.onDrag(mouseX, mouseY, deltaX, deltaY);
+                // 拖动时实时更新
+                updateCropPreview();
+            }
+        };
+        
+        addDrawableChild(cropBoxXSlider);
+        addDrawableChild(cropBoxYSlider);
+        addDrawableChild(cropBoxSizeSlider);
+    }
+    
+    private void updateCropBoxControlsVisibility() {
+        boolean isVisible = WebcamConfig.getDisplayMode() == WebcamConfig.DisplayMode.CROP_BOX;
+        cropBoxXSlider.active = isVisible;
+        cropBoxYSlider.active = isVisible;
+        cropBoxSizeSlider.active = isVisible;
+        cropBoxXSlider.visible = isVisible;
+        cropBoxYSlider.visible = isVisible;
+        cropBoxSizeSlider.visible = isVisible;
     }
 
     public static void drawEntity(DrawContext context, int x1, int y1, int x2, int y2, float size, float f, float mouseX, float mouseY, LivingEntity entity) {
@@ -154,6 +307,35 @@ public class SettingsScreen extends Screen {
         }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
+    
+    // 自定义滑块类，用于裁剪参数调整
+    public abstract class ModSliderWidget extends SliderWidget {
+        private final double min;
+        private final double max;
+        
+        public ModSliderWidget(int x, int y, int width, int height, Text text, double value) {
+            this(x, y, width, height, text, value, 0.0, 1.0);
+        }
+        
+        public ModSliderWidget(int x, int y, int width, int height, Text text, double value, double min, double max) {
+            super(x, y, width, height, text, value);
+            this.min = min;
+            this.max = max;
+        }
+        
+        @Override
+        protected void updateMessage() {
+            setMessage(Text.of("Value: " + value));
+        }
+        
+        @Override
+        protected void applyValue() {}
+        
+        // 获取实际的值（在min和max之间映射）
+        public double getValue() {
+            return min + (max - min) * this.value;
+        }
+    }
 
     @Environment(EnvType.CLIENT)
     public class WebcamEntryList extends EntryListWidget<WebcamEntryList.WebcamEntry> {
@@ -170,7 +352,7 @@ public class SettingsScreen extends Screen {
 
         @Override
         protected void renderHeader(DrawContext context, int x, int y) {
-            context.drawCenteredTextWithShadow(SettingsScreen.this.textRenderer, Text.of("Select Webcam"), this.width/2, y, 0xFFFF00);
+            context.drawCenteredTextWithShadow(SettingsScreen.this.textRenderer, Text.of("选择摄像头"), this.width/2, y, 0xFFFF00);
             context.draw();
         }
 
@@ -229,6 +411,24 @@ public class SettingsScreen extends Screen {
                 return super.mouseClicked(mouseX, mouseY, button);
             }
         }
+    }
 
+    // 新增：更新裁剪预览的方法
+    private void updateCropPreview() {
+        // 仅在选框裁剪模式下处理
+        if (WebcamConfig.getDisplayMode() != WebcamConfig.DisplayMode.CROP_BOX) {
+            return;
+        }
+        
+        // 通过临时传入当前的裁剪参数，触发图像处理更新
+        try {
+            // 这会触发VideoCamara类使用最新的裁剪参数来处理图像
+            // 下一帧渲染时就会显示更新后的效果
+            MinecraftClient.getInstance().send(() -> {
+                WebcamConfig.saveConfig(); // 确保新参数被保存
+            });
+        } catch (Exception e) {
+            // 忽略可能的异常
+        }
     }
 }

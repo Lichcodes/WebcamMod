@@ -18,6 +18,9 @@ public class RenderableImage {
         if (id == 0) {
             id = glGenTextures();
             buffer = new DoublePBO(this.width * this.height * 3);
+        } else if (buffer.getSize() < this.width * this.height * 3) {
+            // 如果图像大小变化，需要更新buffer的大小
+            buffer = new DoublePBO(this.width * this.height * 3);
         }
 
         glBindTexture(GL_TEXTURE_2D, this.id);

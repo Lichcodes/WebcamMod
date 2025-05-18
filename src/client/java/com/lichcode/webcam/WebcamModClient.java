@@ -1,5 +1,6 @@
 package com.lichcode.webcam;
 
+import com.lichcode.webcam.config.WebcamConfig;
 import com.lichcode.webcam.render.PlayerFaceRenderer;
 
 import com.lichcode.webcam.screen.SettingsScreen;
@@ -18,6 +19,9 @@ import net.minecraft.client.render.entity.PlayerEntityRenderer;
 public class WebcamModClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
+		// 初始化配置
+		WebcamConfig.init();
+		
 		registerSettingsCommand();
 
 		LivingEntityFeatureRendererRegistrationCallback.EVENT.register((entityType, entityRenderer, registrationHelper, context) -> {

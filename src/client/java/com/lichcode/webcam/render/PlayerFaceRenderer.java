@@ -1,6 +1,8 @@
 package com.lichcode.webcam.render;
 
 import com.lichcode.webcam.PlayerFeeds;
+import com.lichcode.webcam.Video.PlayerVideo;
+import com.lichcode.webcam.config.WebcamConfig;
 import com.lichcode.webcam.render.image.RenderableImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
@@ -46,6 +48,12 @@ public class PlayerFaceRenderer extends FeatureRenderer<PlayerEntity, PlayerEnti
             return;
         }
 
+        // 获取玩家视频信息
+        PlayerVideo video = PlayerFeeds.getPlayerVideo(playerUUID);
+        if (video == null) {
+            return;
+        }
+
         // 保存当前的RenderSystem状态并设置深度测试
         RenderSystem.enableDepthTest();
         RenderSystem.depthFunc(GL_LEQUAL);
@@ -58,6 +66,8 @@ public class PlayerFaceRenderer extends FeatureRenderer<PlayerEntity, PlayerEnti
         // 将摄像头放在脸部前面，稍微靠前
         // 关键修复：从-0.30调整到-0.31，防止与披风产生Z-fighting
         matrices.translate(0, 0, -0.31);
+
+        // 对所有模式使用相同的缩放比例
         matrices.scale(0.25f, 0.5f, 1f);
 
         // 准备渲染数据

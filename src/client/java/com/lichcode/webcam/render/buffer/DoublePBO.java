@@ -15,6 +15,10 @@ public class DoublePBO {
         this.size = size;
     }
 
+    public int getSize() {
+        return this.size;
+    }
+
     public void writeAndSwap(ByteBuffer data) {
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, writePBO);
         glBufferData(GL_PIXEL_UNPACK_BUFFER, size, GL_DYNAMIC_DRAW);
