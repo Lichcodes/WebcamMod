@@ -3,6 +3,7 @@
 	"package": "com.lichcode.webcam.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
+		"CustomPayloadC2SPacketMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

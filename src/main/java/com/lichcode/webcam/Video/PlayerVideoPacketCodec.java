@@ -2,12 +2,10 @@ package com.lichcode.webcam.Video;
 
 import com.lichcode.webcam.WebcamMod;
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
 
-public class PlayerVideoPacketCodec implements PacketCodec<PacketByteBuf, PlayerVideo> {
+public class PlayerVideoPacketCodec  {
     public static final PlayerVideoPacketCodec PACKET_CODEC;
 
-    @Override
     public PlayerVideo decode(PacketByteBuf buf) {
         try {
             int stringSize = buf.readInt();
@@ -29,7 +27,6 @@ public class PlayerVideoPacketCodec implements PacketCodec<PacketByteBuf, Player
         }
     }
 
-    @Override
     public void encode(PacketByteBuf buf, PlayerVideo value) {
         buf.writeInt(value.playerUUID.length());
         buf.writeString(value.playerUUID);
@@ -43,5 +40,4 @@ public class PlayerVideoPacketCodec implements PacketCodec<PacketByteBuf, Player
     static {
         PACKET_CODEC = new PlayerVideoPacketCodec();
     }
-
 }

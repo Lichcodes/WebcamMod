@@ -4,6 +4,7 @@ import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamException;
 import com.lichcode.webcam.WebcamMod;
 import com.lichcode.webcam.video.VideoCamara;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
@@ -66,12 +67,13 @@ public class SettingsScreen extends Screen {
 
         int listWidth = this.width/4;
         int closeButtonY = this.height - ELEMENT_SPACING;
-        WebcamEntryList listWidget = new WebcamEntryList(this.client, listWidth, closeButtonY, ELEMENT_SPACING, 18, 18);
+        WebcamEntryList listWidget = new WebcamEntryList(this.client, listWidth, closeButtonY, 0, this.height, 18);
+        listWidget.setRenderHeader(true, 18);
         String currentWebcam = VideoCamara.getCurrentWebcam();
         for (String webcamName : webcams) {
             int index = listWidget.addEntry(webcamName);
             if (currentWebcam != null && currentWebcam.equals(webcamName)) {
-                listWidget.setSelected(index);
+                listWidget.setSelected(listWidget.getEntry(index));
             }
         }
 
@@ -107,7 +109,7 @@ public class SettingsScreen extends Screen {
         entity.setPitch(-j * 20.0F);
         entity.headYaw = entity.getYaw();
         entity.prevHeadYaw = entity.getYaw();
-        float p = entity.getScale();
+        float p = entity.getScaleFactor();
         Vector3f vector3f = new Vector3f(0.0F, entity.getHeight() - 0.6f + f * p, 0.0F);
         float q = (float)size / p;
         drawEntity(context, g, h, q, vector3f, quaternionf, quaternionf2, entity);
@@ -133,7 +135,7 @@ public class SettingsScreen extends Screen {
         }
 
         entityRenderDispatcher.setRenderShadows(false);
-        context.draw((vertexConsumers) -> entityRenderDispatcher.render(entity, (double)0.0F, (double)0.0F, (double)0.0F, 1.0F, context.getMatrices(), vertexConsumers, 15728880));
+        RenderSystem.runAsFancy(() -> entityRenderDispatcher.render(entity, (double)0.0F, (double)0.0F, (double)0.0F, 0.0F, 1.0F, context.getMatrices(), context.getVertexConsumers(), 15728880));
         context.draw();
         entityRenderDispatcher.setRenderShadows(true);
         context.getMatrices().pop();
@@ -141,16 +143,16 @@ public class SettingsScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
         if (mouseX > this.width/4) {
-            zoom += verticalAmount/10;
+            zoom += amount/10;
             if (zoom < 0.1) {
                 zoom = 0.1f;
             } else if (zoom > 15) {
                 zoom = 15;
             }
         }
-        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        return super.mouseScrolled(mouseX, mouseY, amount);
     }
 
     @Environment(EnvType.CLIENT)
@@ -158,8 +160,12 @@ public class SettingsScreen extends Screen {
         public boolean canSwitch = true;
         private Function<String,?> selectedCallback;
 
-        public WebcamEntryList(MinecraftClient client, int width, int height, int y, int itemHeight, int headerHeight) {
-            super(client, width, height, y, itemHeight, headerHeight);
+        public WebcamEntryList(MinecraftClient client, int width, int height, int top, int bottom, int itemHeight) {
+            super(client, width, height, top, bottom, itemHeight);
+        }
+
+        public void setRenderHeader(boolean renderHeader, int headerHeight) {
+            super.setRenderHeader(renderHeader, headerHeight);
         }
 
         public void onSelected(Function<String, ?> selectedCallback) {
@@ -173,8 +179,8 @@ public class SettingsScreen extends Screen {
         }
 
         @Override
-        public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
-            super.renderWidget(context, mouseX, mouseY, delta);
+        public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+            super.render(context, mouseX, mouseY, delta);
             WebcamEntry entry = getEntryAtPosition(mouseX, mouseY);
             if (entry != null) {
                 context.drawTooltip(SettingsScreen.this.textRenderer, Text.of(entry.text), mouseX, mouseY);
@@ -182,14 +188,17 @@ public class SettingsScreen extends Screen {
         }
 
         @Override
-        protected void appendClickableNarrations(NarrationMessageBuilder builder) {
-
+        public void appendNarrations(NarrationMessageBuilder builder) {
         }
 
         public int addEntry(String text) {
             WebcamEntry webcamEntry = new WebcamEntry();
             webcamEntry.text = text;
             return super.addEntry(webcamEntry);
+        }
+
+        public WebcamEntry getEntry(int i) {
+            return super.getEntry(i);
         }
 
         @Environment(EnvType.CLIENT)

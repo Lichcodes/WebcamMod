@@ -1,11 +1,15 @@
 package com.lichcode.webcam.video;
 
+import com.lichcode.webcam.Video.PlayerVideoPacketCodec;
 import com.lichcode.webcam.WebcamMod;
 import com.lichcode.webcam.PlayerFeeds;
 import com.lichcode.webcam.Video.PlayerVideo;
 import com.lichcode.webcam.VideoFramePayload;
+import io.netty.buffer.ByteBuf;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.network.PacketByteBuf;
 
 import java.io.IOException;
 import java.util.Date;
@@ -40,11 +44,14 @@ public class VideoManager  {
     public static void loop() {
         try {
             VideoCamara.get(videoFeed);
-            if (ClientPlayNetworking.canSend(VideoFramePayload.ID)) {
+            if (ClientPlayNetworking.canSend(VideoFramePayload.VIDEO_FRAME_PAYLOAD_ID)) {
                 // Update my own player feed for rendering my own face (when you press F5)
                 PlayerFeeds.update(videoFeed);
                 // Send video to server
-                ClientPlayNetworking.send(new VideoFramePayload(videoFeed));
+                PacketByteBuf buf = PacketByteBufs.create();
+                PlayerVideoPacketCodec.PACKET_CODEC.encode(buf, videoFeed);
+                buf.resetReaderIndex();
+                ClientPlayNetworking.send(VideoFramePayload.VIDEO_FRAME_PAYLOAD_ID, buf);
             } else {
                 WebcamMod.LOGGER.warn("Could not send video frame, network handler is null???");
             }

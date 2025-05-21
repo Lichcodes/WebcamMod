@@ -1,5 +1,7 @@
 package com.lichcode.webcam;
 
+import com.lichcode.webcam.Video.PlayerVideo;
+import com.lichcode.webcam.Video.PlayerVideoPacketCodec;
 import com.lichcode.webcam.render.PlayerFaceRenderer;
 
 import com.lichcode.webcam.screen.SettingsScreen;
@@ -34,9 +36,11 @@ public class WebcamModClient implements ClientModInitializer {
 			VideoManager.stopThread();
 		}));
 
-		ClientPlayNetworking.registerGlobalReceiver(VideoFramePayload.ID, ((payload, context) -> {
-			PlayerFeeds.update(payload.video());
-		}));
+        ClientPlayNetworking.registerGlobalReceiver(VideoFramePayload.VIDEO_FRAME_PAYLOAD_ID, (minecraftClient, clientPlayNetworkHandler, packetByteBuf, packetSender) -> {
+			packetByteBuf.resetReaderIndex();
+			PlayerVideo playerVideo = PlayerVideoPacketCodec.PACKET_CODEC.decode(packetByteBuf);
+			PlayerFeeds.update(playerVideo);
+        });
 	}
 
 

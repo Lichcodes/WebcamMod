@@ -4,33 +4,33 @@ import com.lichcode.webcam.PlayerFeeds;
 import com.lichcode.webcam.render.image.RenderableImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.*;
 import net.minecraft.client.model.ModelPart;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.render.*;
 import net.minecraft.client.render.entity.feature.FeatureRenderer;
 import net.minecraft.client.render.entity.feature.FeatureRendererContext;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
-import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix4f;
 
 import static org.lwjgl.opengl.GL33.*;
 
-public class PlayerFaceRenderer extends FeatureRenderer<PlayerEntityRenderState, PlayerEntityModel>  {
+public class PlayerFaceRenderer extends FeatureRenderer<AbstractClientPlayerEntity, PlayerEntityModel<AbstractClientPlayerEntity>>  {
 
-    public PlayerFaceRenderer(FeatureRendererContext<PlayerEntityRenderState, PlayerEntityModel> context) {
+    public PlayerFaceRenderer(FeatureRendererContext<AbstractClientPlayerEntity, PlayerEntityModel<AbstractClientPlayerEntity>> context) {
         super(context);
     }
 
     @Override
-    public void render(MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, PlayerEntityRenderState state, float limbAngle, float limbDistance) {
+    public void render(MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, AbstractClientPlayerEntity entity, float limbAngle, float limbDistance, float tickDelta, float animationProgress, float headYaw, float headPitch) {
         ClientPlayNetworkHandler clientPlayNetworkHandler = MinecraftClient.getInstance().getNetworkHandler();
         if (clientPlayNetworkHandler == null) {
             return;
         }
-        PlayerListEntry playerListEntry = clientPlayNetworkHandler.getPlayerListEntry(state.name);
+
+        PlayerListEntry playerListEntry = clientPlayNetworkHandler.getPlayerListEntry(entity.getUuid());;
         if (playerListEntry == null) {
             return;
         }
@@ -52,20 +52,22 @@ public class PlayerFaceRenderer extends FeatureRenderer<PlayerEntityRenderState,
         matrices.scale(0.25f, 0.5f, 1f);
 
         MatrixStack.Entry entry = matrices.peek();
+        RenderSystem.getProjectionMatrix();
         Matrix4f position = new Matrix4f(entry.getPositionMatrix());
         Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_TEXTURE);
 
+        BufferBuilder buffer = tessellator.getBuffer();
+        buffer.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_TEXTURE);
 
-        buffer.vertex(position, 1, -1, 0).texture(0, 0);
-        buffer.vertex(position, 1, 0, 0).texture(0, 1);
-        buffer.vertex(position, -1, 0, 0).texture(1, 1);
+        buffer.vertex(position, 1, -1, 0).texture(0, 0).next();
+        buffer.vertex(position, 1, 0, 0).texture(0, 1).next();
+        buffer.vertex(position, -1, 0, 0).texture(1, 1).next();
 
-        buffer.vertex(position, -1, 0, 0).texture(1, 1);
-        buffer.vertex(position, 1, -1, 0).texture(0, 0);
-        buffer.vertex(position, -1, -1, 0).texture(1, 0);
+        buffer.vertex(position, -1, 0, 0).texture(1, 1).next();
+        buffer.vertex(position, 1, -1, 0).texture(0, 0).next();
+        buffer.vertex(position, -1, -1, 0).texture(1, 0).next();
 
-        RenderSystem.setShader(ShaderProgramKeys.POSITION_TEX);
+        RenderSystem.setShader(GameRenderer::getPositionTexProgram);
         RenderSystem.setShaderColor(1, 1, 1, 1);
 
         image.init();
@@ -89,8 +91,7 @@ public class PlayerFaceRenderer extends FeatureRenderer<PlayerEntityRenderState,
 
         glDisable(GL_CULL_FACE);
         glEnable(GL_DEPTH_TEST);
-        BufferRenderer.drawWithGlobalProgram(buffer.end());
-        glUseProgram(0);
+        tessellator.draw();
         glDisable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
         glBindTexture(GL_TEXTURE_2D, 0);
