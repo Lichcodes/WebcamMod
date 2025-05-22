@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
+import org.apache.logging.log4j.core.jmx.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,5 +40,12 @@ public class WebcamMod implements ModInitializer {
                 ServerPlayNetworking.send(player, VideoFramePayload.VIDEO_FRAME_PAYLOAD_ID, toSend);
             }
         });
+
+		ServerPlayNetworking.registerGlobalReceiver(DisableCameraPayload.DISABLE_CAMERA_PAYLOAD_ID, ((server, sender, handler, buf, responseSender) -> {
+			for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+				PacketByteBuf toSend = PacketByteBufs.copy(buf);
+				ServerPlayNetworking.send(player, DisableCameraPayload.DISABLE_CAMERA_PAYLOAD_ID, toSend);
+			}
+		}));
 	}
 }

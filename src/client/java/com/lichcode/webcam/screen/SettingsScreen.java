@@ -3,7 +3,10 @@ package com.lichcode.webcam.screen;
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamException;
 import com.lichcode.webcam.WebcamMod;
+import com.lichcode.webcam.WebcamModClient;
+import com.lichcode.webcam.config.WebcamConfig;
 import com.lichcode.webcam.video.VideoCamara;
+import com.lichcode.webcam.video.VideoManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -13,6 +16,8 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.EntryListWidget;
+import net.minecraft.client.gui.widget.OptionListWidget;
+import net.minecraft.client.option.SimpleOption;
 import net.minecraft.client.render.DiffuseLighting;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.entity.LivingEntity;
@@ -22,6 +27,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class SettingsScreen extends Screen {
@@ -41,12 +47,16 @@ public class SettingsScreen extends Screen {
         if (!this.webcamEntryList.canSwitch) {
             context.drawTooltip(this.textRenderer, Text.of("Opening webcam..."), this.width/4*2, 50);
         }
+        if (!this.webcamEntryList.cameraEnabled) {
+            context.drawTooltip(this.textRenderer, Text.of("Camera disabled"), this.width/4*2, 50);
+        }
     }
 
     @Override
     public void init() {
         initCloseButton();
         initWebcamList();
+        initCameraEnabled();
     }
 
     private void initCloseButton() {
@@ -62,12 +72,29 @@ public class SettingsScreen extends Screen {
         addDrawableChild(closeButton);
     }
 
+    private void initCameraEnabled() {
+        SimpleOption<Boolean> cameraEnabledOption = SimpleOption.ofBoolean("Camara Enabled", WebcamConfig.isCameraEnabled(), enabled -> {
+            WebcamConfig.setCameraEnabled(enabled);
+            webcamEntryList.cameraEnabled = enabled;
+            if (!enabled) {
+                VideoManager.stopThread();
+                WebcamModClient.sendDisableCameraPayload();
+            } else {
+                VideoManager.startCameraLoop();
+            }
+        });
+        int width = this.width/4;
+        OptionListWidget list = new OptionListWidget(this.client, width, 18, 0, this.height - 32, 25);
+        list.addSingleOptionEntry(cameraEnabledOption);
+        addDrawableChild(list);
+    }
+
     private void initWebcamList() {
         List<String> webcams = VideoCamara.getWebcamList();
 
         int listWidth = this.width/4;
         int closeButtonY = this.height - ELEMENT_SPACING;
-        WebcamEntryList listWidget = new WebcamEntryList(this.client, listWidth, closeButtonY, 0, this.height, 18);
+        WebcamEntryList listWidget = new WebcamEntryList(this.client, listWidth, closeButtonY, 32, this.height, 18);
         listWidget.setRenderHeader(true, 18);
         String currentWebcam = VideoCamara.getCurrentWebcam();
         for (String webcamName : webcams) {
@@ -86,6 +113,7 @@ public class SettingsScreen extends Screen {
             return null;
         });
 
+        listWidget.cameraEnabled = WebcamConfig.isCameraEnabled();
         this.webcamEntryList = listWidget;
         addDrawableChild(listWidget);
     }
@@ -158,6 +186,7 @@ public class SettingsScreen extends Screen {
     @Environment(EnvType.CLIENT)
     public class WebcamEntryList extends EntryListWidget<WebcamEntryList.WebcamEntry> {
         public boolean canSwitch = true;
+        public boolean cameraEnabled = true;
         private Function<String,?> selectedCallback;
 
         public WebcamEntryList(MinecraftClient client, int width, int height, int top, int bottom, int itemHeight) {
@@ -215,7 +244,7 @@ public class SettingsScreen extends Screen {
 
                 Text text = Text.of(textToDraw);
                 int color = -1;
-                if (!WebcamEntryList.this.canSwitch)  {
+                if (!WebcamEntryList.this.canSwitch || !WebcamEntryList.this.cameraEnabled)  {
                     color = 0x5B5B54;
                 }
                 context.drawCenteredTextWithShadow(SettingsScreen.this.textRenderer, text, centerX, textY - 9 / 2, color);
@@ -224,7 +253,7 @@ public class SettingsScreen extends Screen {
 
             @Override
             public boolean mouseClicked(double mouseX, double mouseY, int button) {
-                if (WebcamEntryList.this.canSwitch && this != WebcamEntryList.this.getSelectedOrNull()) {
+                if (WebcamEntryList.this.canSwitch && WebcamEntryList.this.cameraEnabled && this != WebcamEntryList.this.getSelectedOrNull()) {
                     WebcamEntryList.this.canSwitch = false;
                     WebcamEntryList.this.setSelected(this);
                     new Thread(() -> {

@@ -23,4 +23,9 @@ public class PlayerFeeds {
         image.fill(video);
         images.put(video.playerUUID, image);
     }
+
+    public static void remove(String uuid) {
+        videos.remove(uuid);
+        images.remove(uuid);
+    }
 }

@@ -3,6 +3,7 @@ package com.lichcode.webcam.video;
 import com.lichcode.webcam.WebcamMod;
 import com.lichcode.webcam.Video.PlayerVideo;
 import com.github.sarxos.webcam.*;
+import com.lichcode.webcam.config.WebcamConfig;
 import org.jetbrains.annotations.Nullable;
 
 import javax.imageio.IIOImage;
@@ -22,11 +23,29 @@ public class VideoCamara {
     private static Webcam webcam;
 
     public static void init() {
+        String selectedCamera = WebcamConfig.getSelectedCamera();
+        if (!selectedCamera.isEmpty()) {
+            try {
+                Webcam wc = Webcam.getWebcamByName(selectedCamera);
+                if (wc != null) {
+                    wc.open();
+                    webcam = wc;
+                    return;
+                }
+
+                WebcamMod.LOGGER.info("Can not find selected camera {}, trying others.", selectedCamera);
+            } catch (WebcamException e) {
+                WebcamMod.LOGGER.info("Can not open selected camera {}, trying others.", selectedCamera);
+            }
+        }
+
+
         for(Webcam wc : Webcam.getWebcams()) {
             try {
                 wc.open();
                 webcam = wc;
                 WebcamMod.LOGGER.info("Using webcam: {}", wc.getName());
+                WebcamConfig.setSelectedCamera(webcam.getName());
                 return;
             } catch (WebcamException e) {
                 WebcamMod.LOGGER.info("Webcam {} not usable, trying next one.", wc.getName());
@@ -57,6 +76,7 @@ public class VideoCamara {
         }
 
         webcam = wc;
+        WebcamConfig.setSelectedCamera(webcam.getName());
     }
 
     public static String getCurrentWebcam() {
