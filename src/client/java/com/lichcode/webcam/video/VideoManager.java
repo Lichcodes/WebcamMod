@@ -16,7 +16,7 @@ public class VideoManager  {
 
     public static void startCameraLoop() {
         running = true;
-        videoFeed = new PlayerVideo(200, 200, MinecraftClient.getInstance().player.getUuidAsString());
+        videoFeed = new PlayerVideo(128, 128, MinecraftClient.getInstance().player.getUuidAsString());
         new Thread(() -> {
             VideoCamara.init();
             WebcamMod.LOGGER.info("Camera loop started");
@@ -24,10 +24,10 @@ public class VideoManager  {
             // Start behind to run first loop
             Date nextUpdate = new Date();
             while(running) {
-                // Target 30fps sent to the server, I don't know if this actually helps
+                // 保持10fps (每100ms一帧)
                 Date now = new Date();
                 if (now.toInstant().isAfter(nextUpdate.toInstant())) {
-                    // 50 millis into the future
+                    // 100 millis into the future for 10fps
                     nextUpdate.setTime(now.getTime() + 100);
                     loop();
                 }

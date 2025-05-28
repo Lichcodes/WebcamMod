@@ -86,14 +86,15 @@ public class VideoCamara {
                 break;
         }
 
-        // Compress image using JPEG
+        // 压缩图像使用JPEG格式，70%质量以平衡文件大小和质量
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ImageOutputStream ios = ImageIO.createImageOutputStream(baos);
         Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpeg");
         ImageWriter writer = writers.next();
         JPEGImageWriteParam jpegParams = new JPEGImageWriteParam(null);
         jpegParams.setCompressionMode(JPEGImageWriteParam.MODE_EXPLICIT);
-        jpegParams.setCompressionQuality(1);
+        // 设置压缩质量为70%以减少网络传输负载
+        jpegParams.setCompressionQuality(0.7f);
         writer.setOutput(ios);
         IIOImage outputImage = new IIOImage(image, null, null);
 
