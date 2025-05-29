@@ -9,7 +9,8 @@ public class CustomPayloadC2SPacketMixin {
 
     @ModifyConstant(
             method = "<init>(Lnet/minecraft/network/PacketByteBuf;)V",
-            constant = @Constant(intValue = 32767)
+            constant = @Constant(intValue = 32767),
+            require = 0 // Avoid crash if constant is missing
     )
     private int modifyMaxPayloadSize(int originalSize) {
         return 120500;
